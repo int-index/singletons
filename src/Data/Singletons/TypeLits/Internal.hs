@@ -53,8 +53,11 @@ data instance Sing (n :: Nat) = KnownNat n => SNat
 instance KnownNat n => SingI n where
   sing = SNat
 
+type instance Demote (a :: Nat) = a
+
+type instance Demote Nat = Integer
+
 instance SingKind Nat where
-  type Demote Nat = Integer
   fromSing (SNat :: Sing n) = natVal (Proxy :: Proxy n)
   toSing n = case someNatVal n of
                Just (SomeNat (_ :: Proxy n)) -> SomeSing (SNat :: Sing n)
@@ -65,8 +68,11 @@ data instance Sing (n :: Symbol) = KnownSymbol n => SSym
 instance KnownSymbol n => SingI n where
   sing = SSym
 
+type instance Demote (a :: Symbol) = a
+
+type instance Demote Symbol = Text
+
 instance SingKind Symbol where
-  type Demote Symbol = Text
   fromSing (SSym :: Sing n) = T.pack (symbolVal (Proxy :: Proxy n))
   toSing s = case someSymbolVal (T.unpack s) of
                SomeSymbol (_ :: Proxy n) -> SomeSing (SSym :: Sing n)

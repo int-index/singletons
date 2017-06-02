@@ -134,7 +134,7 @@ singEqualityInstance desc@(_, className, _) name = do
                             show className ++ " for it.") name
   dtvbs <- mapM dsTvb tvbs
   dcons <- concatMapM dsCon cons
-  let tyvars = map (DVarT . extractTvbName) dtvbs
+  let tyvars = map tvbToType dtvbs
       kind = foldType (DConT name) tyvars
   aName <- qNewName "a"
   let aVar = DVarT aName

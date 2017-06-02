@@ -29,7 +29,7 @@ module Data.Singletons (
   Sing(SLambda, applySing),
   -- | See also 'Data.Singletons.Prelude.Sing' for exported constructors
 
-  SingI(..), SingKind(..),
+  SingI(..), SingKind(..), Demote,
 
   -- * Working with singletons
   KindOf, SameKind,
@@ -61,7 +61,7 @@ module Data.Singletons (
   Proxy(..)
   ) where
 
-import Data.Kind
+import Data.Kind (Type)
 import Unsafe.Coerce
 import Data.Proxy ( Proxy(..) )
 import GHC.Exts ( Proxy#, Constraint )
@@ -91,14 +91,21 @@ class SingI (a :: k) where
   -- extension to use this method the way you want.
   sing :: Sing a
 
+-- | Get a base type from the promoted kind. For example,
+-- @Demote Bool@ will be the type @Bool@. Rarely, the type and kind do not
+-- match. For example, @Demote Nat@ is @Integer@.
+type family Demote (k :: mk) = (r :: mk)
+
+type family DemoteArrow (k1 :: Type) (k2 :: Type) :: Type where
+  DemoteArrow (TyFun a b) Type = Demote a -> Demote b
+  DemoteArrow k1 k2 = Demote k1 -> Demote k2
+
+type instance Demote (k1 -> k2) = DemoteArrow k1 k2
+
 -- | The 'SingKind' class is a /kind/ class. It classifies all kinds
 -- for which singletons are defined. The class supports converting between a singleton
 -- type and the base (unrefined) type which it is built from.
 class SingKind k where
-  -- | Get a base type from the promoted kind. For example,
-  -- @Demote Bool@ will be the type @Bool@. Rarely, the type and kind do not
-  -- match. For example, @Demote Nat@ is @Integer@.
-  type Demote k = (r :: *) | r -> k
 
   -- | Convert a singleton to its unrefined version.
   fromSing :: Sing (a :: k) -> Demote k
@@ -145,11 +152,11 @@ singInstance s = with_sing_i SingInstance
 -- between term-level arrows and this type-level arrow is that at the term
 -- level applications can be unsaturated, whereas at the type level all
 -- applications have to be fully saturated.
-data TyFun :: * -> * -> *
+data TyFun :: Type -> Type -> Type
 
 -- | Something of kind `a ~> b` is a defunctionalized type function that is
 -- not necessarily generative or injective.
-type a ~> b = TyFun a b -> *
+type a ~> b = TyFun a b -> Type
 infixr 0 ~>
 
 -- | Wrapper for converting the normal type-level arrow into a '~>'.
@@ -201,7 +208,6 @@ newtype instance Sing (f :: k1 ~> k2) =
   SLambda { applySing :: forall t. Sing t -> Sing (f @@ t) }
 
 instance (SingKind k1, SingKind k2) => SingKind (k1 ~> k2) where
-  type Demote (k1 ~> k2) = Demote k1 -> Demote k2
   fromSing sFun x = withSomeSing x (fromSing . applySing sFun)
   toSing _ = error "Cannot create existentially-quantified singleton functions."
 

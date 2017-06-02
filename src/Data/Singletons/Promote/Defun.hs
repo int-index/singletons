@@ -131,12 +131,12 @@ defunctionalize name m_arg_kinds' m_res_kind' = do
           m_tyfun     = buildTyFun_maybe m_arg m_result
           arg_params  = zipWith mk_tvb rest_names (reverse m_args)
           tyfun_param = mk_tvb fst_name m_tyfun
-          arg_names   = map extractTvbName arg_params
+          arg_names   = map tvbToType arg_params
           params      = arg_params ++ [tyfun_param]
           con_eq_ct   = DConPr sameKindName `DAppPr` lhs `DAppPr` rhs
             where
-              lhs = foldType (DConT data_name) (map DVarT arg_names) `apply` (DVarT extra_name)
-              rhs = foldType (DConT next_name) (map DVarT (arg_names ++ [extra_name]))
+              lhs = foldType (DConT data_name) arg_names `apply` (DVarT extra_name)
+              rhs = foldType (DConT next_name) (arg_names ++ [DVarT extra_name])
           con_decl    = DCon [DPlainTV extra_name]
                              [con_eq_ct]
                              con_name

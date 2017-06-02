@@ -22,14 +22,18 @@ import Data.Singletons.Names
 import Data.Singletons.Syntax
 import Control.Monad
 
+singKindConstraint' :: DTyVarBndr -> [DPred]
+singKindConstraint' (DPlainTV n) = [singKindConstraint (DVarT n)]
+singKindConstraint' (DKindedTV n DStarT) = [singKindConstraint (DVarT n)]
+singKindConstraint' (DKindedTV _ _) = []
+
 -- We wish to consider the promotion of "Rep" to be *
 -- not a promoted data constructor.
 singDataD :: DataDecl -> SgM [DDec]
 singDataD (DataDecl _nd name tvbs ctors derivings) = do
   aName <- qNewName "z"
   let a = DVarT aName
-  let tvbNames = map extractTvbName tvbs
-  k <- promoteType (foldType (DConT name) (map DVarT tvbNames))
+  k <- promoteType (foldType (DConT name) (map tvbToType tvbs))
   ctors' <- mapM (singCtor a) ctors
   ctorFixities <-
     -- try to reify the fixity declarations for the constructors and then
@@ -47,14 +51,15 @@ singDataD (DataDecl _nd name tvbs ctors derivings) = do
   toSingClauses   <- mapM mkToSingClause ctors
   let singKindInst =
         DInstanceD Nothing
-                   (map (singKindConstraint . DVarT) tvbNames)
+                   (concatMap singKindConstraint' tvbs)
                    (DAppT (DConT singKindClassName) k)
-                   [ DTySynInstD demoteName $ DTySynEqn
-                      [k]
-                      (foldType (DConT name)
-                        (map (DAppT demote . DVarT) tvbNames))
-                   , DLetDec $ DFunD fromSingName (fromSingClauses `orIfEmpty` emptyMethod aName)
+                   [ DLetDec $ DFunD fromSingName (fromSingClauses `orIfEmpty` emptyMethod aName)
                    , DLetDec $ DFunD toSingName   (toSingClauses   `orIfEmpty` emptyMethod aName) ]
+      demoteInst =
+        DTySynInstD demoteName $
+          DTySynEqn [k]
+                    (foldType (DConT name)
+                    (map (DAppT demote . tvbToType) tvbs))
 
   -- SEq instance
   sEqInsts <- if any (\case DConPr n -> n == eqName; _ -> False) derivings
@@ -69,6 +74,7 @@ singDataD (DataDecl _nd name tvbs ctors derivings) = do
 
   return $ (DDataInstD Data [] singFamilyName [DSigT a k] ctors' []) :
            kindedSynInst :
+           demoteInst :
            singKindInst :
            sEqInsts ++
            ctorFixities

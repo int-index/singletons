@@ -39,6 +39,7 @@ mkEqualityInstance k ctors (mkMeth, className, methName) = do
         getKindVars (DConT {})        = []
         getKindVars DStarT            = []
         getKindVars DArrowT           = []
+        getKindVars (DSigT v _)       = getKindVars v
         getKindVars other             =
           error ("getKindVars sees an unusual kind: " ++ show other)
 

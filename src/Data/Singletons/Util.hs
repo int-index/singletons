@@ -205,7 +205,8 @@ extractTvbName (DPlainTV n) = n
 extractTvbName (DKindedTV n _) = n
 
 tvbToType :: DTyVarBndr -> DType
-tvbToType = DVarT . extractTvbName
+tvbToType (DPlainTV n) = DVarT n
+tvbToType (DKindedTV n k) = DSigT (DVarT n) k
 
 inferMaybeKindTV :: Name -> Maybe DKind -> DTyVarBndr
 inferMaybeKindTV n Nothing =  DPlainTV n
